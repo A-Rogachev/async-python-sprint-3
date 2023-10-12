@@ -2,6 +2,7 @@ import asyncio
 
 import os
 import sys
+from server import logger
 
 def clear_console():
     """
@@ -26,8 +27,8 @@ class Client:
         Отправка сообщения.
         """
         while True:
-            message = await self.get_user_input('Enter a message (or "exit" to exit): ')
-            writer.write((message + '\n').encode())
+            message = await self.get_user_input('')
+            writer.write((message).encode())
             await writer.drain()
 
             if message == 'exit':
@@ -37,12 +38,34 @@ class Client:
         """
         Обработка входящих сообщений.
         """
+        input_prompt = '--Enter a message (or "exit" to exit): '
+        sys.stdout.write(f'\r{input_prompt}')
+        sys.stdout.flush()
         while True:
             data = await reader.readline()
             if not data:
                 break
             message = data.decode().strip()
-            print(message)  # Print the received message
+            
+            if message.startswith('Private message from '):
+                print(message)  # Print the received private message
+            elif message.startswith('Server!'):
+                # обработка сообщений от сервера
+                sys.stdout.write(f'\r--SERVER--: {message.removeprefix("Server!")}\n')
+            elif message.startswith('Chat!'):
+                # получение обычных сообщений
+                if message.removeprefix("Chat!").strip() != "":
+                    sys.stdout.write(f'\r(CHAT) {message.removeprefix("Chat!")}\n')
+            else:
+                sys.stdout.write('\rPrivate message from ... ' + message + '\n')
+
+            if not message.startswith('Chat!'):
+                sys.stdout.write('\r--Enter a message (or "exit" to exit): ')
+                sys.stdout.flush()
+
+            self.messages_received.append(message)
+            if message == 'exit':
+                break
 
     async def get_user_input(self, prompt):
         """
