@@ -44,9 +44,10 @@ class Client:
         Обработка входящих сообщений.
         """
         input_prompt: str = (
-            '-- Welcome to Chat! If you want to send a private message, '
-            'type @<username> and space before your message - it will be '
-            'send only to this user. '
+            '-- Welcome to Chat! Some rules:\n'
+            '@<username> <message> -> send private message to user\n'
+            '@help -> show this message\n'
+            '!! <username> -> claim a user\n'
         )
         sys.stdout.write(
             self.COLOR_RED
@@ -68,6 +69,15 @@ class Client:
                         + self.COLOR_RESET
                         + '>>> ' 
                     )
+            if message.startswith('help!'):
+                if message.removeprefix("help!").strip() != "":
+                    sys.stdout.write(
+                        self.COLOR_RED
+                        + f'\r--HELP-- {message.removeprefix("help!")}\n'
+                        + self.COLOR_RESET
+                        + '>>> '
+                    )
+
             elif message.startswith('Server!'):
                 if message.removeprefix("Server!").strip() != "":
                     sys.stdout.write(
@@ -76,10 +86,18 @@ class Client:
                         + self.COLOR_RESET
                         + '>>> '
                     )
+            elif message.startswith('History!'):
+                if message.removeprefix("History!").strip() != "":
+                    sys.stdout.write(
+                        self.COLOR_BLUE
+                        + f'\r--HISTORY-- {message.removeprefix("History!")}\n'
+                        + self.COLOR_RESET
+                        + '>>> '
+                    )
             else:
                 if message.removeprefix("Chat!").strip() != "":
                     sys.stdout.write(
-                        self.COLOR_BLUE
+                        self.COLOR_GREEN
                         + f'\r--CHAT-- {message.removeprefix("Chat!")}\n'
                         + self.COLOR_RESET
                         + '>>> '
