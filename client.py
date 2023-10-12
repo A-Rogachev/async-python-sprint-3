@@ -2,7 +2,6 @@ import asyncio
 
 import os
 import sys
-from server import logger
 
 def clear_console():
     """
@@ -22,12 +21,18 @@ class Client:
         self.chat_messages = []
         self.messages_received = []
 
+        self.COLOR_RED = '\033[91m'
+        self.COLOR_GREEN = '\033[92m'
+        self.COLOR_YELLOW = '\033[93m'
+        self.COLOR_BLUE = '\033[94m'
+        self.COLOR_RESET = '\033[0m'
+
     async def send_message(self, writer):
         """
         Отправка сообщения.
         """
         while True:
-            message = await self.get_user_input('')
+            message = await self.get_user_input('>>> ')
             writer.write((message).encode())
             await writer.drain()
 
@@ -38,8 +43,16 @@ class Client:
         """
         Обработка входящих сообщений.
         """
-        input_prompt = '--Enter a message (or "exit" to exit): '
-        sys.stdout.write(f'\r{input_prompt}')
+        input_prompt: str = (
+            '-- Welcome to Chat! If you want to send a private message, '
+            'type @<username> and space before your message - it will be '
+            'send only to this user. '
+        )
+        sys.stdout.write(
+            self.COLOR_RED
+            + f'\r{input_prompt}\n'
+            + self.COLOR_RESET
+        )
         sys.stdout.flush()
         while True:
             data = await reader.readline()
@@ -47,21 +60,30 @@ class Client:
                 break
             message = data.decode().strip()
             
-            if message.startswith('Private message from '):
-                print(message)  # Print the received private message
+            if message.startswith('Private!'):
+                if message.removeprefix("Private!").strip() != "":
+                    sys.stdout.write(
+                        self.COLOR_YELLOW
+                        + f'\r--PRIVATE-- {message.removeprefix("Private!")}\n'
+                        + self.COLOR_RESET
+                        + '>>> ' 
+                    )
             elif message.startswith('Server!'):
-                # обработка сообщений от сервера
-                sys.stdout.write(f'\r--SERVER--: {message.removeprefix("Server!")}\n')
-            elif message.startswith('Chat!'):
-                # получение обычных сообщений
-                if message.removeprefix("Chat!").strip() != "":
-                    sys.stdout.write(f'\r(CHAT) {message.removeprefix("Chat!")}\n')
+                if message.removeprefix("Server!").strip() != "":
+                    sys.stdout.write(
+                        self.COLOR_YELLOW
+                        + f'\r--SERVER-- {message.removeprefix("Server!")}\n'
+                        + self.COLOR_RESET
+                        + '>>> '
+                    )
             else:
-                sys.stdout.write('\rPrivate message from ... ' + message + '\n')
-
-            if not message.startswith('Chat!'):
-                sys.stdout.write('\r--Enter a message (or "exit" to exit): ')
-                sys.stdout.flush()
+                if message.removeprefix("Chat!").strip() != "":
+                    sys.stdout.write(
+                        self.COLOR_BLUE
+                        + f'\r--CHAT-- {message.removeprefix("Chat!")}\n'
+                        + self.COLOR_RESET
+                        + '>>> '
+                    )
 
             self.messages_received.append(message)
             if message == 'exit':
@@ -79,7 +101,6 @@ class Client:
         Запуск клиента, установка связи с сервером.
         """
         reader, writer = await asyncio.open_connection(self.server_host, self.server_port)
-
         nickname: str = await self.get_user_input("Enter your nickname: ")
         writer.write(nickname.encode() + b'\n')
         await writer.drain()
@@ -91,7 +112,6 @@ class Client:
         await asyncio.gather(send_task, receive_task)
 
         writer.close()
-
 
 if __name__ == '__main__':
     client = Client(server_host='127.0.0.1', server_port=8000)
