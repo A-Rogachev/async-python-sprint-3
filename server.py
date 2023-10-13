@@ -66,62 +66,73 @@ class Server:
             data = await reader.read(1024)
             if not data:
                 break
-            else:
-                message: str = data.decode().strip()
 
-                if message == '@help':
-                    writer.write(
-                        self.help_message.encode()
-                    )
-                    await writer.drain()
-                elif message.startswith('@claim'):
-                    # Для обработки жалоб на клиента.
-                    ...
-                elif message.startswith('@'):
-                    tokens = message[1:].split(' ', 1)
-                    if len(tokens) == 2:
-                        recipient, private_message = tokens
-                        if recipient in self.connected_clients:
-                            recipient_writer = self.connected_clients[
-                                recipient
-                            ].get('writer')
-                            recipient_writer.write(
-                                f'Private!{user_nickname}: '
-                                f'{private_message}\n'.encode()
-                            )
-                            writer.write(
-                                f'Server!Private message was '
-                                f'sent to {recipient}\n'.encode()
-                            )
-                            await recipient_writer.drain()
-                        else:
-                            writer.write(
-                                f'Server!User {recipient} '
-                                f'is not connected\n'.encode()
-                            )
-                            await writer.drain()
-                    else:
-                        logger.info('wrongsy')
-                        writer.write('Server!sdfsd'.encode())
-                        await writer.drain()
-                else:
-                    self.chat_messages.append(
-                        (
-                            message_date := datetime.datetime.now(),
-                            message_text := (
-                                f'({message_date.strftime("%d.%m.%y %H:%M")})'
-                                f' {user_nickname}: {message}'
-                            )
+            message: str = data.decode().strip()
+            if message.startswith('@'):
+                await self.handle_command(message, user_nickname, writer)
+            else:
+                self.chat_messages.append(
+                    (
+                        message_date := datetime.datetime.now(),
+                        message_text := (
+                            f'({message_date.strftime("%d.%m.%y %H:%M:%S")}) '
+                            f' {user_nickname}: {message}'
                         )
                     )
-                    logger.info(f'new message: {message_text}')
-                    await self.broadcast_message(message_text)
-                await writer.drain()
+                )
+                logger.info(f'new message: {message_text}')
+                await self.broadcast_message(message_text)
+            await writer.drain()
 
         # Отключение клиента из списка подключенных клиентов.
         logger.info(f'---User {user_nickname} disconnected---')
         writer.close()
         del self.connected_clients[user_nickname]
+
+    async def handle_command(
+        self,
+        message: str,
+        user_nickname: str,
+        writer: asyncio.StreamWriter,
+    ) -> None:
+        """
+        Обработка команд мессенджера.
+        """
+        if message == '@help':
+            writer.write(self.help_message.encode())
+            await writer.drain()
+        elif message.startswith('@claim'):
+            # Для обработки жалоб на клиента.
+            ...
+        else:
+            tokens = message[1:].split(' ', 1)
+            if len(tokens) == 2:
+                recipient, private_message = tokens
+                if recipient in self.connected_clients:
+                    recipient_writer = self.connected_clients[
+                        recipient
+                    ].get('writer')
+                    recipient_writer.write(
+                        f'Private!{user_nickname}: '
+                        f'{private_message}\n'.encode()
+                    )
+                    writer.write(
+                        f'Server!Private message was '
+                        f'sent to {recipient}\n'.encode()
+                    )
+                    await recipient_writer.drain()
+                else:
+                    writer.write(
+                        f'Server!User {recipient} '
+                        f'is not connected\n'.encode()
+                    )
+                    await writer.drain()
+            else:
+                writer.write(
+                    'Server!Don\'t use @ symbol if its not a command!\n'.encode()
+                )
+                await writer.drain()
+
 
     async def broadcast_message(self, message: str) -> None:
         """
