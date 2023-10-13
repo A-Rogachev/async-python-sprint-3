@@ -115,18 +115,21 @@ class Server:
                         )
                     )
                     logger.info(f'new message: {message_text}')
-
-                    for _, client_writer in self.connected_clients.items():
-                        client_writer.get('writer').write(
-                            f'Chat!{message_text}\n'.encode()
-                        )
-                        await client_writer.get('writer').drain()
+                    await self.broadcast_message(message_text)
                 await writer.drain()
 
         # Отключение клиента из списка подключенных клиентов.
         logger.info(f'---User {user_nickname} disconnected---')
         writer.close()
         del self.connected_clients[user_nickname]
+
+    async def broadcast_message(self, message: str) -> None:
+        """
+        Рассылка сообщения всем пользователям чата.
+        """
+        for _, client_writer in self.connected_clients.items():
+            client_writer.get('writer').write(f'Chat!{message}\n'.encode())
+            await client_writer.get('writer').drain()
 
     async def check_and_delete_old_messages(self) -> None:
         """
