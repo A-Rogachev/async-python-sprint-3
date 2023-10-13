@@ -69,7 +69,7 @@ class Client:
                         + self.COLOR_RESET
                         + '>>> ' 
                     )
-            if message.startswith('help!'):
+            elif message.startswith('help!'):
                 if message.removeprefix("help!").strip() != "":
                     sys.stdout.write(
                         self.COLOR_RED

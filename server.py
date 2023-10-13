@@ -130,9 +130,7 @@ class Server:
             recipient, private_message = tokens
             if recipient in self.connected_clients:
                 recipient_writer = self.connected_clients[recipient].get('writer')
-                recipient_writer.write(
-                    f'Private!{user_nickname}: {private_message}\n'.encode()
-                )
+                recipient_writer.write(f'Private!{user_nickname}: {private_message}\n'.encode())
                 writer.write(f'Server!Private message was sent to {recipient}\n'.encode())
                 await recipient_writer.drain()
             else:
