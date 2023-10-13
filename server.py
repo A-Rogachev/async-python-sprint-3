@@ -33,6 +33,7 @@ class Server:
             'help!@<username> <message> -> send private message to user\n'
             'help!@help -> show this message\n'
             'help!!!<username> -> claim a user\n'
+            'help!@exit -> exit from the messenger\n'
         )
 
     async def client_connected(
@@ -51,7 +52,6 @@ class Server:
             'private_messages': [],
             'claims': [],
         }
-        # self.connected_clients[user_nickname] = writer
         logger.info(
             f'---User {user_nickname} is connected--- '
             f'(ip={address[0]}, port={address[1]})'
@@ -69,55 +69,59 @@ class Server:
             else:
                 message: str = data.decode().strip()
 
-                if message.startswith('@'):
-                    if message == '@help':
-                        writer.write(
-                            self.help_message.encode()
-                        )
-                        await writer.drain()
-                    elif message.startswith('!!'):
-                        # Для обработки жалоб на клиента.
-                        ...
+                if message == '@help':
+                    writer.write(
+                        self.help_message.encode()
+                    )
+                    await writer.drain()
+                elif message.startswith('@claim'):
+                    # Для обработки жалоб на клиента.
+                    ...
+                elif message.startswith('@'):
+                    tokens = message[1:].split(' ', 1)
+                    if len(tokens) == 2:
+                        recipient, private_message = tokens
+                        if recipient in self.connected_clients:
+                            recipient_writer = self.connected_clients[
+                                recipient
+                            ].get('writer')
+                            recipient_writer.write(
+                                f'Private!{user_nickname}: '
+                                f'{private_message}\n'.encode()
+                            )
+                            writer.write(
+                                f'Server!Private message was '
+                                f'sent to {recipient}\n'.encode()
+                            )
+                            await recipient_writer.drain()
+                        else:
+                            writer.write(
+                                f'Server!User {recipient} '
+                                f'is not connected\n'.encode()
+                            )
+                            await writer.drain()
                     else:
-                        tokens = message[1:].split(' ', 1)
-                        if len(tokens) == 2:
-                            recipient, private_message = tokens
-                            if recipient in self.connected_clients:
-                                recipient_writer = self.connected_clients[
-                                    recipient
-                                ].get('writer')
-                                recipient_writer.write(
-                                    f'Private!{user_nickname}: '
-                                    f'{private_message}\n'.encode()
-                                )
-                                writer.write(
-                                    f'Server!Private message was '
-                                    f'sent to {recipient}\n'.encode()
-                                )
-                                await recipient_writer.drain()
-                            else:
-                                writer.write(
-                                    f'Server!User {recipient} '
-                                    f'is not connected\n'.encode()
-                                )
-                                await writer.drain()
-
+                        logger.info('wrongsy')
+                        writer.write('Server!sdfsd'.encode())
+                        await writer.drain()
                 else:
-                    # logger.info(self.chat_messages)
-                    logger.info(f'{user_nickname}: {message}')
                     self.chat_messages.append(
                         (
                             message_date := datetime.datetime.now(),
-                            f'{message_date.strftime("%d.%m.%y %H:%M")} {user_nickname}: {message}',
+                            message_text := (
+                                f'({message_date.strftime("%d.%m.%y %H:%M")})'
+                                f' {user_nickname}: {message}'
+                            )
                         )
                     )
+                    logger.info(f'new message: {message_text}')
 
                     for _, client_writer in self.connected_clients.items():
                         client_writer.get('writer').write(
-                            f'Chat!{user_nickname}: {message}\n'.encode()
+                            f'Chat!{message_text}\n'.encode()
                         )
                         await client_writer.get('writer').drain()
-                # await writer.drain()
+                await writer.drain()
 
         # Отключение клиента из списка подключенных клиентов.
         logger.info(f'---User {user_nickname} disconnected---')
@@ -156,3 +160,8 @@ class Server:
 if __name__ == '__main__':
     server = Server(host='127.0.0.1', port=8000, max_chat_messages=3)
     asyncio.run(server.listen())
+
+# Регистрация клиента (поле юзеров)
+# Комментирование сообщений (добавить индексы)
+# Жалобы на пользователей (поле у юзера)
+# Отложенные приватные сообщения (поле у юзера)

@@ -1,5 +1,5 @@
 import asyncio
-
+from server import logger
 import os
 import sys
 
@@ -36,8 +36,14 @@ class Client:
             writer.write((message).encode())
             await writer.drain()
 
-            if message == 'exit':
+            if message == '@exit':
+                sys.stdout.write(
+                    self.COLOR_RED
+                    + f'\r-- Bye! --\n'
+                    + self.COLOR_RESET
+                )
                 break
+        writer.close()
 
     async def handle_message(self, reader):
         """
@@ -92,7 +98,7 @@ class Client:
                 if message.removeprefix("Chat!").strip() != "":
                     sys.stdout.write(
                         self.COLOR_GREEN
-                        + f'\r--CHAT-- {message.removeprefix("Chat!")}\n'
+                        + f'\r{message.removeprefix("Chat!")}\n'
                         + self.COLOR_RESET
                         + '>>> '
                     )
