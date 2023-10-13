@@ -66,7 +66,6 @@ class Server:
             data = await reader.read(1024)
             if not data:
                 break
-
             message: str = data.decode().strip()
             if message.startswith('@'):
                 await self.handle_command(message, user_nickname, writer)
@@ -109,30 +108,18 @@ class Server:
             if len(tokens) == 2:
                 recipient, private_message = tokens
                 if recipient in self.connected_clients:
-                    recipient_writer = self.connected_clients[
-                        recipient
-                    ].get('writer')
+                    recipient_writer = self.connected_clients[recipient].get('writer')
                     recipient_writer.write(
-                        f'Private!{user_nickname}: '
-                        f'{private_message}\n'.encode()
+                        f'Private!{user_nickname}: {private_message}\n'.encode()
                     )
-                    writer.write(
-                        f'Server!Private message was '
-                        f'sent to {recipient}\n'.encode()
-                    )
+                    writer.write(f'Server!Private message was sent to {recipient}\n'.encode())
                     await recipient_writer.drain()
                 else:
-                    writer.write(
-                        f'Server!User {recipient} '
-                        f'is not connected\n'.encode()
-                    )
+                    writer.write(f'Server!User {recipient} is not connected\n'.encode())
                     await writer.drain()
             else:
-                writer.write(
-                    'Server!Don\'t use @ symbol if its not a command!\n'.encode()
-                )
+                writer.write('Server!Don\'t use @ symbol if its not a command!\n'.encode())
                 await writer.drain()
-
 
     async def broadcast_message(self, message: str) -> None:
         """
@@ -161,8 +148,7 @@ class Server:
         """
         Запуск сервера.
         """
-        srv = await asyncio.start_server(
-            self.client_connected, self.host, self.port)
+        srv = await asyncio.start_server(self.client_connected, self.host, self.port)
         async with srv:
             logger.info('Server started on %s:%s', self.host, self.port)
             tasks = [

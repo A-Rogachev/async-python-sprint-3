@@ -77,7 +77,6 @@ class Client:
                         + self.COLOR_RESET
                         + '>>> '
                     )
-
             elif message.startswith('Server!'):
                 if message.removeprefix("Server!").strip() != "":
                     sys.stdout.write(
@@ -102,7 +101,6 @@ class Client:
                         + self.COLOR_RESET
                         + '>>> '
                     )
-
             self.messages_received.append(message)
             if message == 'exit':
                 break
