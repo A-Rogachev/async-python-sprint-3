@@ -25,17 +25,18 @@ class Server:
         port: int = 8000,
         max_chat_messages: int = 10,
         message_ttl: int = 10,
+        time_of_ban: int = 3600,
     ):
         """
         Инициализация экземпляра класса Сервер.
         """
-        self.message_index = 0
+        self.message_current_index = 0
         self.host: str = host
         self.port: int = port
         self.max_chat_messages: int = max_chat_messages
         self.message_ttl: int = message_ttl
         self.claims: dict[str, int] = {}
-        self.time_of_ban: int = 3600
+        self.time_of_ban: int = time_of_ban
         self.private_messages: dict[str, Any] = {}
         self.chat_messages = []
         self.connected_clients: dict[str, Any] = {}
@@ -83,6 +84,20 @@ class Server:
                 if not data:
                     break
                 message: str = data.decode().strip()
+                if user_nickname in self.claimed_users:
+                    time_left = int(
+                        (
+                            self.claimed_users[user_nickname]
+                            - datetime.datetime.now().timestamp()
+                        ) // 60 + 1
+                    )
+                    writer.write(
+                        'Server!You are not allowed to send messages'
+                        f' ({time_left} minutes left)\n'.encode()\
+                    )
+                    await writer.drain()
+                    continue
+
                 if message.startswith('@'):
                     await self.handle_command(message, user_nickname, writer)
                 else:
@@ -135,7 +150,7 @@ class Server:
                 self.claims[recipient] = self.claims.get(recipient, 0) + 1
                 if self.claims[recipient] == 3:
                     del self.claims[recipient]
-                    self.claimed_users[recipient] = datetime.datetime.now().timestamp() + 3600
+                    self.claimed_users[recipient] = datetime.datetime.now().timestamp() + self.time_of_ban
                 writer.write(f'Server!User {recipient} claimed by {user_nickname}\n'.encode())
                 await writer.drain()
             else:
@@ -218,13 +233,15 @@ class Server:
         Раз в минуту проверяет пользователей с жалобами.
         """
         while True:
-            await asyncio.sleep(60)
+            await asyncio.sleep(30)
             if self.claimed_users:
                 revealed = []
                 for user in self.claimed_users:
                     if (datetime.datetime.now().timestamp() > self.claimed_users[user]):
                         self.claimed_users[user] = None
                         revealed.append(user)
+                        logger.info(user)
+                logger.info(revealed)
                 for revealed_user in revealed:
                     del self.claimed_users[revealed_user]
 
@@ -237,12 +254,11 @@ class Server:
             logger.info('Server started on %s:%s', self.host, self.port)
             tasks = [
                 asyncio.create_task(self.check_and_delete_old_messages()),
+                asyncio.create_task(self.check_users_claims()),
                 srv.serve_forever(),
             ]
             await asyncio.gather(*tasks)
 
 if __name__ == '__main__':
-    server = Server(host='127.0.0.1', port=8000, max_chat_messages=10)
+    server = Server(host='127.0.0.1', port=8000, max_chat_messages=10, time_of_ban=120)
     asyncio.run(server.listen())
-
-# Комментирование сообщений (добавить индексы)
