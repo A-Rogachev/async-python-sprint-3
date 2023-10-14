@@ -18,30 +18,27 @@ class Client:
         self.server_host: str = server_host
         self.server_port: int = server_port
         self.client_id: int = 0
-        self.chat_messages = []
-        self.messages_received = []
+        self.chat_messages: list = []
+        self.messages_received: list = []
 
-        self.COLOR_RED = '\033[91m'
-        self.COLOR_GREEN = '\033[92m'
-        self.COLOR_YELLOW = '\033[93m'
-        self.COLOR_BLUE = '\033[94m'
-        self.COLOR_RESET = '\033[0m'
+        self.COLOR_RED: str = '\033[91m'
+        self.COLOR_GREEN: str = '\033[92m'
+        self.COLOR_YELLOW: str = '\033[93m'
+        self.COLOR_BLUE: str = '\033[94m'
+        self.COLOR_RESET: str = '\033[0m'
+        self.COMMAND_PROMPT: str = self.COLOR_YELLOW + '>>> ' + self.COLOR_RESET
 
     async def send_message(self, writer):
         """
         Отправка сообщения.
         """
         while True:
-            message = await self.get_user_input('>>> ')
+            message = await self.get_user_input(self.COMMAND_PROMPT)
             writer.write((message).encode())
             await writer.drain()
 
             if message == '@exit':
-                sys.stdout.write(
-                    self.COLOR_RED
-                    + f'\r-- Bye! --\n'
-                    + self.COLOR_RESET
-                )
+                sys.stdout.write(self.COLOR_RED + f'\r-- Bye! --\n' + self.COLOR_RESET)
                 break
         writer.close()
 
@@ -66,40 +63,35 @@ class Client:
                     sys.stdout.write(
                         self.COLOR_YELLOW
                         + f'\r--PRIVATE-- {message.removeprefix("Private!")}\n'
-                        + self.COLOR_RESET
-                        + '>>> ' 
+                        + self.COMMAND_PROMPT
                     )
             elif message.startswith('help!'):
                 if message.removeprefix("help!").strip() != "":
                     sys.stdout.write(
                         self.COLOR_RED
                         + f'\r-- {message.removeprefix("help!")}\n'
-                        + self.COLOR_RESET
-                        + '>>> '
+                        + self.COMMAND_PROMPT
                     )
             elif message.startswith('Server!'):
                 if message.removeprefix("Server!").strip() != "":
                     sys.stdout.write(
                         self.COLOR_YELLOW
                         + f'\r--SERVER-- {message.removeprefix("Server!")}\n'
-                        + self.COLOR_RESET
-                        + '>>> '
+                        + self.COMMAND_PROMPT
                     )
             elif message.startswith('History!'):
                 if message.removeprefix("History!").strip() != "":
                     sys.stdout.write(
                         self.COLOR_BLUE
                         + f'\r--HISTORY-- {message.removeprefix("History!")}\n'
-                        + self.COLOR_RESET
-                        + '>>> '
+                        + self.COMMAND_PROMPT
                     )
             else:
                 if message.removeprefix("Chat!").strip() != "":
                     sys.stdout.write(
                         self.COLOR_GREEN
                         + f'\r{message.removeprefix("Chat!")}\n'
-                        + self.COLOR_RESET
-                        + '>>> '
+                        + self.COMMAND_PROMPT
                     )
             self.messages_received.append(message)
             if message == 'exit':
@@ -117,7 +109,12 @@ class Client:
         Запуск клиента, установка связи с сервером.
         """
         reader, writer = await asyncio.open_connection(self.server_host, self.server_port)
-        nickname: str = await self.get_user_input("Enter your nickname: ")
+        nickname: str = await self.get_user_input(
+            "--------------------------------------------------------------\n"
+            "Enter your nickname and password '<nickname> <password>'.\n"
+            "If you forgot the password, please contact the administrator.\n"
+            "If you want to register, enter 'new <nickname> <password>'.\n"
+        )
         writer.write(nickname.encode() + b'\n')
         await writer.drain()
 

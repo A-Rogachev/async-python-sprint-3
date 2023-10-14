@@ -2,11 +2,14 @@ import logging
 from typing import Any
 import asyncio
 import datetime
+from collections import namedtuple
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
 
+
+ChatUser = namedtuple('ChatUser', ['nickname', 'writer', 'private_messages', 'claims', 'last_visit'])
 
 class Server:
     """
@@ -26,7 +29,9 @@ class Server:
         self.port: int = port
         self.max_chat_messages: int = max_chat_messages
         self.message_ttl = message_ttl
+        self.claims = {}
 
+        self.registered_users = {}
         self.chat_messages = []
         self.connected_clients: dict[str, Any] = {}
         self.help_message = (
@@ -47,10 +52,23 @@ class Server:
         address: str = writer.get_extra_info('peername')
 
         user_nickname: str = (await reader.readline()).decode().strip()
+        # print(user_info)
+        # raise ValueError('test')
+        # TODO: здесь проверяем и записываем юзеров.
+        # if user_nickname in self.registered_users:
+        #     user_password: str = (await reader.readline()).decode().strip()
+        #     if self.registered_users[user_nickname] != user_password:
+        #         writer.write('AuthError!Wrong password! Try again!\n'.encode())
+        #         await writer.drain()
+        #         return
+        # else:
+        #     writer.write('NewUser!')
+        #     new_password: str = (await reader.readline()).decode().strip()
+        #     self.registered_users[user_nickname] = new_password
+
         self.connected_clients[user_nickname] = {
             'writer': writer,
             'private_messages': [],
-            'claims': [],
         }
         logger.info(
             f'---User {user_nickname} is connected--- '
@@ -100,21 +118,33 @@ class Server:
         if message == '@help':
             await self.send_help_message(writer)
         elif message.startswith('@claim'):
-            tokens = message[1:].split(' ', 1)
-            if len(tokens) == 2:
-                recipient = tokens[1]
-                if recipient in self.connected_clients:
-                    self.connected_clients[recipient]['claims'].append(user_nickname)
-                    writer.write(f'Server!User {recipient} claimed by {user_nickname}\n'.encode())
-                    await writer.drain()
-                else:
-                    writer.write(f'Server!User {recipient} is not connected\n'.encode())
-                    await writer.drain()
-            else:
-                writer.write('Server!Don\'t use @ symbol if its not a command!\n'.encode())
-                await writer.drain()
+            await self.add_claim_to_user(message, user_nickname, writer)
         else:
             await self.send_private_message(message, user_nickname, writer)
+
+    async def add_claim_to_user(
+        self,
+        message: str,
+        user_nickname: str,
+        writer: asyncio.StreamWriter,
+    ) -> None:
+        """
+        Добавление жалобы на пользователя.
+        """
+        tokens = message[1:].split(' ', 1)
+        if len(tokens) == 2:
+            recipient = tokens[1]
+            if recipient in self.connected_clients:
+                self.claims[recipient] # TODO : здесь добавить или нет
+                self.connected_clients[recipient]['claims'].append(user_nickname)
+                writer.write(f'Server!User {recipient} claimed by {user_nickname}\n'.encode())
+                await writer.drain()
+            else:
+                writer.write(f'Server!User {recipient} is not connected\n'.encode())
+                await writer.drain()
+        else:
+            writer.write('Server!Don\'t use @ symbol if its not a command!\n'.encode())
+            await writer.drain()
 
     async def send_private_message(
         self,
@@ -170,6 +200,13 @@ class Server:
                         break
                 break
 
+    async def check_users_claims(self) -> None:
+        """
+        Проверяет пользователей с жалобами.
+        Раз в минуту проверяет пользователей с жалобами.
+        """
+        
+
     async def listen(self) -> None:
         """
         Запуск сервера.
@@ -187,7 +224,10 @@ if __name__ == '__main__':
     server = Server(host='127.0.0.1', port=8000, max_chat_messages=10)
     asyncio.run(server.listen())
 
-# Регистрация клиента (поле юзеров)
+# Регистрация клиента (поле юзеров) - сделать ++++++++++++++++++ добавить запись посл.
+# посещения, старых удалять
+
 # Комментирование сообщений (добавить индексы)
-# Жалобы на пользователей (поле у юзера)
-# Отложенные приватные сообщения (поле у юзера)
+# Жалобы на пользователей (поле у юзера) после регистрации
+# Отложенные приватные сообщения (поле у юзера) после регистрации
+# добавить метод удаленичя давно не заходивших юзеров
