@@ -1,13 +1,16 @@
 import asyncio
-from server import logger
+import datetime
+import json
 import os
 import sys
+from server import load_user_database
 
 def clear_console():
     """
     Очистка окна терминала клиента после введения логина.
     """
     os.system('cls' if os.name == 'nt' else 'clear')
+
 
 
 class Client:
@@ -42,6 +45,11 @@ class Client:
                 break
         writer.close()
 
+    def load_user_database(self, filename):
+            with open(filename, 'r') as file:
+                data = json.load(file)
+            return data
+
     async def handle_message(self, reader):
         """
         Обработка входящих сообщений.
@@ -65,13 +73,6 @@ class Client:
                         + f'\r--PRIVATE-- {message.removeprefix("Private!")}\n'
                         + self.COMMAND_PROMPT
                     )
-            elif message.startswith('AuthError!'):
-                if message.removeprefix("AuthError!").strip() != "":
-                    sys.stdout.write(f'{self.COLOR_RED + message.removeprefix("AuthError!")}\n' + self.COLOR_RESET)
-                    break
-                break
-
-        
             elif message.startswith('help!'):
                 if message.removeprefix("help!").strip() != "":
                     sys.stdout.write(
@@ -101,10 +102,8 @@ class Client:
                         + self.COMMAND_PROMPT
                     )
             self.messages_received.append(message)
-            if message == 'AuthError!':
+            if message == 'exit':
                 break
-            # if message == 'exit':
-            #     break
 
     async def get_user_input(self, prompt):
         """
@@ -131,17 +130,35 @@ class Client:
             writer.close()
             sys.exit(0)
 
-        writer.write(nickname.encode() + b'\n')
-        await writer.drain()
+        user_database = load_user_database('users_database.json')
+        authenticated = False
 
-        #################
-        # data = await reader.readline()
-        # message = data.decode().strip()
-        # if message.startswith('AuthError!'):
-        #     sys.stdout.write(f'{self.COLOR_RED + message.removeprefix("AuthError!")}\n' + self.COLOR_RESET)
-        #     writer.close()
-        #     sys.exit(0)
-        # else:
+        if len(user_info) == 2:
+            username, password = user_info
+            for user in user_database:
+                if user['username'] == username and user['password'] == password:
+                    authenticated = True
+                    break
+        else:
+            _, username, password = user_info
+            if username not in user_database:
+                new_user = {
+                    'username': username,
+                    'password': password,
+                    'last_visit': datetime.datetime.now().timestamp(),
+                }
+                user_database.append(new_user)
+                with open('users_database.json', 'w') as file:
+                    json.dump(user_database, file)
+                authenticated = True
+
+        if not authenticated:
+            sys.stdout.write(self.COLOR_RED + 'Invalid username or password!\n' + self.COLOR_RESET)
+            writer.close()
+            sys.exit(0)
+
+        writer.write(username.encode() + b'\n')
+        await writer.drain()
 
         clear_console()
         send_task = asyncio.create_task(self.send_message(writer))

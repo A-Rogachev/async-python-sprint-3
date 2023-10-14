@@ -1,15 +1,19 @@
-import logging
-from typing import Any
 import asyncio
 import datetime
-from collections import namedtuple
+import json
+import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
 
 
-ChatUser = namedtuple('ChatUser', ['nickname', 'writer', 'private_messages', 'claims', 'last_visit'])
+def load_user_database(filename):
+        with open(filename, 'r') as file:
+            data = json.load(file)
+        return data
+
 
 class Server:
     """
@@ -28,10 +32,9 @@ class Server:
         self.host: str = host
         self.port: int = port
         self.max_chat_messages: int = max_chat_messages
-        self.message_ttl = message_ttl
-        self.claims = {}
-
-        self.registered_users = {}
+        self.message_ttl: int = message_ttl
+        self.claims: dict[str, Any] = {}
+        self.private_messages: dict[str, Any] = {}
         self.chat_messages = []
         self.connected_clients: dict[str, Any] = {}
         self.help_message = (
@@ -40,6 +43,7 @@ class Server:
             'help!!!<username> -> claim a user\n'
             'help!@exit -> exit from the messenger\n'
         )
+        self.user_database_filename: str = 'users_database.json'
 
     async def client_connected(
         self,
@@ -51,42 +55,8 @@ class Server:
         """
         address: str = writer.get_extra_info('peername')
 
-        user_info: str = (await reader.readline()).decode().strip().split()
-        connection = False
-        if len(user_info) == 2:
-            user_nickname, user_password = user_info
-            if user_nickname in self.registered_users:
-                if self.registered_users[user_nickname].get('password') != user_password:
-                    writer.write('AuthError!Wrong password! Try again!\n'.encode())
-                    await writer.drain()
-                    writer.close()
-                else:
-                    self.registered_users[user_nickname]['last_visit'] = datetime.datetime.now()
-                    writer.write('Connected!'.encode())
-                    await writer.drain()
-                    connection = True
-            else:
-                writer.write('AuthError!User not found! Register first!\n'.encode())
-                await writer.drain()
-                writer.close()
-        elif len(user_info) == 3:
-            _, user_nickname, user_password = user_info
-            if user_nickname in self.registered_users:
-                writer.write('AuthError!User already exists! Try another name!\n'.encode())
-                await writer.drain()
-                writer.close()
-            else:
-                self.registered_users[user_nickname] = {
-                    'password': user_password,
-                    'last_visit': datetime.datetime.now(),
-                    'claims': [],
-                    'private_messages': [],
-                }
-                # writer.write('Connected!'.encode())
-                # await writer.drain()
-                connection = True
-
-        if connection:
+        user_nickname: str = (await reader.readline()).decode().strip()
+        if user_nickname != "":
             self.connected_clients[user_nickname] = {
                 'writer': writer,
             }
@@ -99,6 +69,11 @@ class Server:
                 for message in self.chat_messages[-self.max_chat_messages:]:
                     writer.write(f'History!{message[1]}\n'.encode())
                     await writer.drain()
+            if self.private_messages.get(user_nickname):
+                for message in self.private_messages[user_nickname]:
+                    writer.write(f'Private!{message}\n'.encode())
+                    await writer.drain()
+                del self.private_messages[user_nickname]
 
             while True:
                 data = await reader.read(1024)
@@ -177,14 +152,27 @@ class Server:
         tokens = message[1:].split(' ', 1)
         if len(tokens) == 2:
             recipient, private_message = tokens
+            private_message: str = f'Private!({datetime.datetime.now().strftime("%d.%m.%y %H:%M:%S")}) {user_nickname}: {private_message}\n'
             if recipient in self.connected_clients:
                 recipient_writer = self.connected_clients[recipient].get('writer')
-                recipient_writer.write(f'Private!{user_nickname}: {private_message}\n'.encode())
+                recipient_writer.write(
+                    private_message.encode()
+                )
                 writer.write(f'Server!Private message was sent to {recipient}\n'.encode())
                 await recipient_writer.drain()
             else:
-                writer.write(f'Server!User {recipient} is not connected\n'.encode())
-                await writer.drain()
+                user_exists = False
+                for user in load_user_database(self.user_database_filename):
+                    if user['username'] == recipient:
+                        user_exists = True
+                        break
+                if not user_exists:
+                    writer.write(f'Server!User {recipient} is not registered\n'.encode())
+                    await writer.drain()
+                else:
+                    writer.write(f'Server!User {recipient} is not connected\n'.encode())
+                    await writer.drain()
+                    self.private_messages.setdefault(recipient, []).append(private_message)
         else:
             writer.write('Server!Don\'t use @ symbol if its not a command!\n'.encode())
             await writer.drain()
@@ -243,8 +231,6 @@ if __name__ == '__main__':
     server = Server(host='127.0.0.1', port=8000, max_chat_messages=10)
     asyncio.run(server.listen())
 
-# Регистрация клиента (поле юзеров) - сделать ++++++++++++++++++ добавить запись посл.
-# посещения, старых удалять
 
 # Комментирование сообщений (добавить индексы)
 # Жалобы на пользователей (поле у юзера) после регистрации

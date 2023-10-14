@@ -1,0 +1,14 @@
+[
+    {
+        "username": "admin",
+        "password": "admin",
+        "last_visit": null,
+        "claims": []
+    },
+    {
+        "username": "user",
+        "password": "password",
+        "last_visit": null,
+        "claims": []
+    }
+]
