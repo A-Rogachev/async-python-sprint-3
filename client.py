@@ -142,7 +142,7 @@ class Client:
                     break
         else:
             _, username, password = user_info
-            if username not in user_database:
+            if username not in (item["username"] for item in user_database):
                 new_user = {
                     'username': username,
                     'password': password,
@@ -152,6 +152,14 @@ class Client:
                 with open('users_database.json', 'w') as file:
                     json.dump(user_database, file)
                 authenticated = True
+            else:            
+                sys.stdout.write(
+                    self.colors.RED
+                    + 'This name already occupied!\n'
+                    + self.colors.RESET
+                )
+                writer.close()
+                sys.exit(0)
         if not authenticated:
             sys.stdout.write(
                 self.colors.RED

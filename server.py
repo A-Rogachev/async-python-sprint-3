@@ -51,7 +51,8 @@ class Server:
         self.help_message = (
             'help!@<username> <message> -> send private message to user\n'
             'help!@help -> show this message\n'
-            'help!!!<username> -> claim a user\n'
+            'help!@claim<username> -> claim a user\n'
+            'help!@comment<message id> <new message> -> comment a message\n'
             'help!@exit -> exit from the messenger\n'
         )
         self.user_database_filename: str = 'users_database.json'
@@ -297,10 +298,9 @@ class Server:
                         self.claimed_users[user] = None
                         revealed.append(user)
                         logger.info(user)
-                logger.info(revealed)
-                for revealed_user in revealed:
-                    del self.claimed_users[revealed_user]
-                del revealed
+                if revealed:
+                    for revealed_user in revealed:
+                        del self.claimed_users[revealed_user]
 
     async def listen(self) -> None:
         """
