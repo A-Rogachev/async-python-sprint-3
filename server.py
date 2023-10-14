@@ -29,14 +29,17 @@ class Server:
         """
         Инициализация экземпляра класса Сервер.
         """
+        self.message_index = 0
         self.host: str = host
         self.port: int = port
         self.max_chat_messages: int = max_chat_messages
         self.message_ttl: int = message_ttl
-        self.claims: dict[str, Any] = {}
+        self.claims: dict[str, int] = {}
+        self.time_of_ban: int = 3600
         self.private_messages: dict[str, Any] = {}
         self.chat_messages = []
         self.connected_clients: dict[str, Any] = {}
+        self.claimed_users: dict[str, Any] = {}
         self.help_message = (
             'help!@<username> <message> -> send private message to user\n'
             'help!@help -> show this message\n'
@@ -129,8 +132,10 @@ class Server:
         if len(tokens) == 2:
             recipient = tokens[1]
             if recipient in self.connected_clients:
-                self.claims[recipient] # TODO : здесь добавить или нет
-                self.connected_clients[recipient]['claims'].append(user_nickname)
+                self.claims[recipient] = self.claims.get(recipient, 0) + 1
+                if self.claims[recipient] == 3:
+                    del self.claims[recipient]
+                    self.claimed_users[recipient] = datetime.datetime.now().timestamp() + 3600
                 writer.write(f'Server!User {recipient} claimed by {user_nickname}\n'.encode())
                 await writer.drain()
             else:
@@ -212,7 +217,16 @@ class Server:
         Проверяет пользователей с жалобами.
         Раз в минуту проверяет пользователей с жалобами.
         """
-        
+        while True:
+            await asyncio.sleep(60)
+            if self.claimed_users:
+                revealed = []
+                for user in self.claimed_users:
+                    if (datetime.datetime.now().timestamp() > self.claimed_users[user]):
+                        self.claimed_users[user] = None
+                        revealed.append(user)
+                for revealed_user in revealed:
+                    del self.claimed_users[revealed_user]
 
     async def listen(self) -> None:
         """
@@ -231,8 +245,4 @@ if __name__ == '__main__':
     server = Server(host='127.0.0.1', port=8000, max_chat_messages=10)
     asyncio.run(server.listen())
 
-
 # Комментирование сообщений (добавить индексы)
-# Жалобы на пользователей (поле у юзера) после регистрации
-# Отложенные приватные сообщения (поле у юзера) после регистрации
-# добавить метод удаленичя давно не заходивших юзеров
