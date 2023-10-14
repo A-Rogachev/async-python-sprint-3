@@ -117,20 +117,28 @@ class Client:
         )
 
         user_info = nickname.split()
-        if len(user_info) != 2 or len(user_info) == 3 and user_info[0] != 'new':
-            sys.stdout.write('Wrong command format! Try later!\n')
+        if len(user_info) not in (2, 3) or len(user_info) == 3 and user_info[0] != 'new':
+            sys.stdout.write(self.COLOR_RED + 'Wrong command format! Try later!\n' + self.COLOR_RESET)
             writer.close()
             sys.exit(0)
 
         writer.write(nickname.encode() + b'\n')
         await writer.drain()
 
-        clear_console()
-        send_task = asyncio.create_task(self.send_message(writer))
-        receive_task = asyncio.create_task(self.handle_message(reader))
-        await asyncio.gather(send_task, receive_task)
+        #################
+        data = await reader.readline()
+        message = data.decode().strip()
+        if message.startswith('AuthError!'):
+            sys.stdout.write(f'{self.COLOR_RED + message.removeprefix("AuthError!")}\n' + self.COLOR_RESET)
+            writer.close()
+            sys.exit(0)
+        elif message.startswith('Connected!'):
+            clear_console()
+            send_task = asyncio.create_task(self.send_message(writer))
+            receive_task = asyncio.create_task(self.handle_message(reader))
+            await asyncio.gather(send_task, receive_task)
 
-        writer.close()
+            writer.close()
 
 if __name__ == '__main__':
     client = Client(server_host='127.0.0.1', server_port=8000)

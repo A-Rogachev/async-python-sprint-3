@@ -51,60 +51,80 @@ class Server:
         """
         address: str = writer.get_extra_info('peername')
 
-        user_nickname: str = (await reader.readline()).decode().strip()
-
-
-        # TODO: здесь проверяем и записываем юзеров.
-        # if user_nickname in self.registered_users:
-        #     user_password: str = (await reader.readline()).decode().strip()
-        #     if self.registered_users[user_nickname] != user_password:
-        #         writer.write('AuthError!Wrong password! Try again!\n'.encode())
-        #         await writer.drain()
-        #         return
-        # else:
-        #     writer.write('NewUser!')
-        #     new_password: str = (await reader.readline()).decode().strip()
-        #     self.registered_users[user_nickname] = new_password
-
-        self.connected_clients[user_nickname] = {
-            'writer': writer,
-            'private_messages': [],
-        }
-        logger.info(
-            f'---User {user_nickname} is connected--- '
-            f'(ip={address[0]}, port={address[1]})'
-        )
-
-        if self.chat_messages:
-            for message in self.chat_messages[-self.max_chat_messages:]:
-                writer.write(f'History!{message[1]}\n'.encode())
-                await writer.drain()
-
-        while True:
-            data = await reader.read(1024)
-            if not data:
-                break
-            message: str = data.decode().strip()
-            if message.startswith('@'):
-                await self.handle_command(message, user_nickname, writer)
+        user_info: str = (await reader.readline()).decode().strip().split()
+        connection = False
+        if len(user_info) == 2:
+            user_nickname, user_password = user_info
+            if user_nickname in self.registered_users:
+                if self.registered_users[user_nickname].get('password') != user_password:
+                    writer.write('AuthError!Wrong password! Try again!\n'.encode())
+                    await writer.drain()
+                    writer.close()
+                else:
+                    self.registered_users[user_nickname]['last_visit'] = datetime.datetime.now()
+                    writer.write('Connected!'.encode())
+                    await writer.drain()
+                    connection = True
             else:
-                self.chat_messages.append(
-                    (
-                        message_date := datetime.datetime.now(),
-                        message_text := (
-                            f'({message_date.strftime("%d.%m.%y %H:%M:%S")}) '
-                            f'{user_nickname}: {message}'
+                writer.write('AuthError!User not found! Register first!\n'.encode())
+                await writer.drain()
+                writer.close()
+        elif len(user_info) == 3:
+            _, user_nickname, user_password = user_info
+            if user_nickname in self.registered_users:
+                writer.write('AuthError!User already exists! Try another name!\n'.encode())
+                await writer.drain()
+                writer.close()
+            else:
+                self.registered_users[user_nickname] = {
+                    'password': user_password,
+                    'last_visit': datetime.datetime.now(),
+                    'claims': [],
+                    'private_messages': [],
+                }
+                writer.write('Connected!'.encode())
+                await writer.drain()
+                connection = True
+
+
+        if connection:
+            self.connected_clients[user_nickname] = {
+                'writer': writer,
+            }
+            logger.info(
+                f'---User {user_nickname} is connected--- '
+                f'(ip={address[0]}, port={address[1]})'
+            )
+
+            if self.chat_messages:
+                for message in self.chat_messages[-self.max_chat_messages:]:
+                    writer.write(f'History!{message[1]}\n'.encode())
+                    await writer.drain()
+
+            while True:
+                data = await reader.read(1024)
+                if not data:
+                    break
+                message: str = data.decode().strip()
+                if message.startswith('@'):
+                    await self.handle_command(message, user_nickname, writer)
+                else:
+                    self.chat_messages.append(
+                        (
+                            message_date := datetime.datetime.now(),
+                            message_text := (
+                                f'({message_date.strftime("%d.%m.%y %H:%M:%S")}) '
+                                f'{user_nickname}: {message}'
+                            )
                         )
                     )
-                )
-                logger.info(f'new message: {message_text}')
-                await self.broadcast_message(message_text)
-            await writer.drain()
+                    logger.info(f'new message: {message_text}')
+                    await self.broadcast_message(message_text)
+                await writer.drain()
 
-        # Отключение клиента из списка подключенных клиентов.
-        logger.info(f'---User {user_nickname} disconnected---')
-        writer.close()
-        del self.connected_clients[user_nickname]
+            logger.info(f'---User {user_nickname} disconnected---')
+            writer.close()
+            del self.connected_clients[user_nickname]
 
     async def handle_command(
         self,
