@@ -161,14 +161,14 @@ class Server:
                 if message.index == int(number):
                     founded_message = True
                     text = message.text
-                    new_message_text: Message = (
+                    self.chat_messages.append(
                         Message(
                             message_date := datetime.datetime.now(),
                             index := self.message_current_index,
                             text := (
-                                f'Comment: {text}'
+                                f'Commenting <{text}>\n'
                                 f'[{index}] ({message_date.strftime("%d.%m.%y %H:%M:%S")}) '
-                                f'{user_nickname}: {message}'
+                                f'{user_nickname}: {comment_text}'
                             )
                         )
                     )
