@@ -65,6 +65,13 @@ class Client:
                         + f'\r--PRIVATE-- {message.removeprefix("Private!")}\n'
                         + self.COMMAND_PROMPT
                     )
+            elif message.startswith('AuthError!'):
+                if message.removeprefix("AuthError!").strip() != "":
+                    sys.stdout.write(f'{self.COLOR_RED + message.removeprefix("AuthError!")}\n' + self.COLOR_RESET)
+                    break
+                break
+
+        
             elif message.startswith('help!'):
                 if message.removeprefix("help!").strip() != "":
                     sys.stdout.write(
@@ -94,8 +101,10 @@ class Client:
                         + self.COMMAND_PROMPT
                     )
             self.messages_received.append(message)
-            if message == 'exit':
+            if message == 'AuthError!':
                 break
+            # if message == 'exit':
+            #     break
 
     async def get_user_input(self, prompt):
         """
@@ -126,19 +135,20 @@ class Client:
         await writer.drain()
 
         #################
-        data = await reader.readline()
-        message = data.decode().strip()
-        if message.startswith('AuthError!'):
-            sys.stdout.write(f'{self.COLOR_RED + message.removeprefix("AuthError!")}\n' + self.COLOR_RESET)
-            writer.close()
-            sys.exit(0)
-        elif message.startswith('Connected!'):
-            clear_console()
-            send_task = asyncio.create_task(self.send_message(writer))
-            receive_task = asyncio.create_task(self.handle_message(reader))
-            await asyncio.gather(send_task, receive_task)
+        # data = await reader.readline()
+        # message = data.decode().strip()
+        # if message.startswith('AuthError!'):
+        #     sys.stdout.write(f'{self.COLOR_RED + message.removeprefix("AuthError!")}\n' + self.COLOR_RESET)
+        #     writer.close()
+        #     sys.exit(0)
+        # else:
 
-            writer.close()
+        clear_console()
+        send_task = asyncio.create_task(self.send_message(writer))
+        receive_task = asyncio.create_task(self.handle_message(reader))
+        await asyncio.gather(send_task, receive_task)
+
+        writer.close()
 
 if __name__ == '__main__':
     client = Client(server_host='127.0.0.1', server_port=8000)

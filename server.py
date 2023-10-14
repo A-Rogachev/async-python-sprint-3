@@ -82,10 +82,9 @@ class Server:
                     'claims': [],
                     'private_messages': [],
                 }
-                writer.write('Connected!'.encode())
-                await writer.drain()
+                # writer.write('Connected!'.encode())
+                # await writer.drain()
                 connection = True
-
 
         if connection:
             self.connected_clients[user_nickname] = {
