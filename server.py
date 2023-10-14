@@ -5,12 +5,14 @@ import logging
 from collections import namedtuple
 from typing import Any
 
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
 
 
 Message = namedtuple('Message', ['date', 'index', 'text'])
+
 
 def load_user_database(filename: str) -> list[dict[str, Any]]:
     """
@@ -99,7 +101,7 @@ class Server:
                     )
                     writer.write(
                         'Server!You are not allowed to send messages'
-                        f' ({time_left} minutes left)\n'.encode()\
+                        f' ({time_left} minutes left)\n'.encode()
                     )
                     await writer.drain()
                     continue
@@ -183,7 +185,6 @@ class Server:
             writer.write('Server!Don\'t use @ symbol if its not a command!\n'.encode())
             await writer.drain()
 
-
     async def add_claim_to_user(
         self,
         message: str,
@@ -200,7 +201,10 @@ class Server:
                 self.claims[recipient] = self.claims.get(recipient, 0) + 1
                 if self.claims[recipient] == 3:
                     del self.claims[recipient]
-                    self.claimed_users[recipient] = datetime.datetime.now().timestamp() + self.time_of_ban
+                    self.claimed_users[recipient] = (
+                        datetime.datetime.now().timestamp()
+                        + self.time_of_ban
+                    )
                 writer.write(f'Server!User {recipient} claimed by {user_nickname}\n'.encode())
                 await writer.drain()
             else:
@@ -222,7 +226,10 @@ class Server:
         tokens = message[1:].split(' ', 1)
         if len(tokens) == 2:
             recipient, private_message = tokens
-            private_message: str = f'Private!({datetime.datetime.now().strftime("%d.%m.%y %H:%M:%S")}) {user_nickname}: {private_message}\n'
+            private_message: str = (
+                f'Private!({datetime.datetime.now().strftime("%d.%m.%y %H:%M:%S")}) '
+                f'{user_nickname}: {private_message}\n'
+            )
             if recipient in self.connected_clients:
                 recipient_writer = self.connected_clients[recipient].get('writer')
                 recipient_writer.write(
@@ -308,6 +315,7 @@ class Server:
                 srv.serve_forever(),
             ]
             await asyncio.gather(*tasks)
+
 
 if __name__ == '__main__':
     server = Server(host='127.0.0.1', port=8000, max_chat_messages=10, time_of_ban=120)

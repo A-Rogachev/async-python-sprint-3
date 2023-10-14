@@ -3,14 +3,25 @@ import datetime
 import json
 import os
 import sys
+from dataclasses import dataclass
+
 from server import load_user_database
+
+
+@dataclass
+class TerminalColors:
+    RED: str = '\033[91m'
+    GREEN: str = '\033[92m'
+    YELLOW: str = '\033[93m'
+    BLUE: str = '\033[94m'
+    RESET: str = '\033[0m'
+
 
 def clear_console():
     """
     Очистка окна терминала клиента после введения логина.
     """
     os.system('cls' if os.name == 'nt' else 'clear')
-
 
 
 class Client:
@@ -23,13 +34,8 @@ class Client:
         self.client_id: int = 0
         self.chat_messages: list = []
         self.messages_received: list = []
-
-        self.COLOR_RED: str = '\033[91m'
-        self.COLOR_GREEN: str = '\033[92m'
-        self.COLOR_YELLOW: str = '\033[93m'
-        self.COLOR_BLUE: str = '\033[94m'
-        self.COLOR_RESET: str = '\033[0m'
-        self.COMMAND_PROMPT: str = self.COLOR_YELLOW + '>>> ' + self.COLOR_RESET
+        self.colors = TerminalColors()
+        self.COMMAND_PROMPT: str = self.colors.YELLOW + '>>> ' + self.colors.RESET
 
     async def send_message(self, writer):
         """
@@ -41,23 +47,18 @@ class Client:
             await writer.drain()
 
             if message == '@exit':
-                sys.stdout.write(self.COLOR_RED + f'\r-- Bye! --\n' + self.COLOR_RESET)
+                sys.stdout.write(self.colors.RED + '\r-- Bye! --\n' + self.colors.RESET)
                 break
         writer.close()
-
-    def load_user_database(self, filename):
-            with open(filename, 'r') as file:
-                data = json.load(file)
-            return data
 
     async def handle_message(self, reader):
         """
         Обработка входящих сообщений.
         """
         sys.stdout.write(
-            self.COLOR_RED
-            + f'\r-- Welcome to Chat! -> use @help to see instructions.\n'
-            + self.COLOR_RESET
+            self.colors.RED
+            + '\r-- Welcome to Chat! -> use @help to see instructions.\n'
+            + self.colors.RESET
         )
         sys.stdout.flush()
         while True:
@@ -65,39 +66,39 @@ class Client:
             if not data:
                 break
             message = data.decode().strip()
-            
+
             if message.startswith('Private!'):
                 if message.removeprefix("Private!").strip() != "":
                     sys.stdout.write(
-                        self.COLOR_YELLOW
+                        self.colors.YELLOW
                         + f'\r--PRIVATE-- {message.removeprefix("Private!")}\n'
                         + self.COMMAND_PROMPT
                     )
             elif message.startswith('help!'):
                 if message.removeprefix("help!").strip() != "":
                     sys.stdout.write(
-                        self.COLOR_RED
+                        self.colors.RED
                         + f'\r-- {message.removeprefix("help!")}\n'
                         + self.COMMAND_PROMPT
                     )
             elif message.startswith('Server!'):
                 if message.removeprefix("Server!").strip() != "":
                     sys.stdout.write(
-                        self.COLOR_YELLOW
+                        self.colors.YELLOW
                         + f'\r--SERVER-- {message.removeprefix("Server!")}\n'
                         + self.COMMAND_PROMPT
                     )
             elif message.startswith('History!'):
                 if message.removeprefix("History!").strip() != "":
                     sys.stdout.write(
-                        self.COLOR_BLUE
+                        self.colors.BLUE
                         + f'\r--HISTORY-- {message.removeprefix("History!")}\n'
                         + self.COMMAND_PROMPT
                     )
             else:
                 if message.removeprefix("Chat!").strip() != "":
                     sys.stdout.write(
-                        self.COLOR_GREEN
+                        self.colors.GREEN
                         + f'\r{message.removeprefix("Chat!")}\n'
                         + self.COMMAND_PROMPT
                     )
@@ -126,7 +127,11 @@ class Client:
 
         user_info = nickname.split()
         if len(user_info) not in (2, 3) or len(user_info) == 3 and user_info[0] != 'new':
-            sys.stdout.write(self.COLOR_RED + 'Wrong command format! Try later!\n' + self.COLOR_RESET)
+            sys.stdout.write(
+                self.colors.RED
+                + 'Wrong command format! Try later!\n'
+                + self.colors.RESET
+            )
             writer.close()
             sys.exit(0)
 
@@ -153,7 +158,7 @@ class Client:
                 authenticated = True
 
         if not authenticated:
-            sys.stdout.write(self.COLOR_RED + 'Invalid username or password!\n' + self.COLOR_RESET)
+            sys.stdout.write(self.colors.RED + 'Invalid username or password!\n' + self.colors.RESET)
             writer.close()
             sys.exit(0)
 
@@ -166,6 +171,7 @@ class Client:
         await asyncio.gather(send_task, receive_task)
 
         writer.close()
+
 
 if __name__ == '__main__':
     client = Client(server_host='127.0.0.1', server_port=8000)
