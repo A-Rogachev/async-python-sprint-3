@@ -137,10 +137,52 @@ class Server:
         """
         if message == '@help':
             await self.send_help_message(writer)
+        elif message.startswith('@comment'):
+            await self.send_comment_message(message, user_nickname, writer)
         elif message.startswith('@claim'):
             await self.add_claim_to_user(message, user_nickname, writer)
         else:
             await self.send_private_message(message, user_nickname, writer)
+
+    async def send_comment_message(
+        self,
+        message: str,
+        user_nickname: str,
+        writer: asyncio.StreamWriter,
+    ) -> None:
+        """
+        Комментирование сообщения.
+        """
+        tokens = message[:].removeprefix('@comment').split(' ', 1)
+        if len(tokens) == 2:
+            number, comment_text = tokens
+            founded_message: bool = False
+            for message in self.chat_messages:
+                if message.index == int(number):
+                    founded_message = True
+                    text = message.text
+                    new_message_text: Message = (
+                        Message(
+                            message_date := datetime.datetime.now(),
+                            index := self.message_current_index,
+                            text := (
+                                f'Comment: {text}'
+                                f'[{index}] ({message_date.strftime("%d.%m.%y %H:%M:%S")}) '
+                                f'{user_nickname}: {message}'
+                            )
+                        )
+                    )
+                    self.message_current_index += 1
+                    logger.info(f'new message: {text}')
+                    await self.broadcast_message(text)
+                await writer.drain()
+            if not founded_message:
+                writer.write('Server!Message not found or deleted!\n'.encode())
+                await writer.drain()
+        else:
+            writer.write('Server!Don\'t use @ symbol if its not a command!\n'.encode())
+            await writer.drain()
+
 
     async def add_claim_to_user(
         self,
