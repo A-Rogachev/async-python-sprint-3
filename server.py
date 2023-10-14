@@ -51,22 +51,9 @@ class Server:
         """
         address: str = writer.get_extra_info('peername')
 
-        user_info: str = (await reader.readline()).decode().strip().split()
-        # if len(user_info) != 2 or len(user_info) == 3 and user_info[0] != 'new':
-        #     writer.write('AuthError!Wrong command! Try later!\n'.encode())
-        #     await writer.drain()
-        #     writer.close()
-        # else:
-        #     if len(user_info) == 2:
-        #         user_nickname, user_password = user_info
-        #     elif len(user_info) == 3 and user_info[0] == 'new':
-        #         _, user_nickname, user_password = user_info
+        user_nickname: str = (await reader.readline()).decode().strip()
 
 
-
-        _, user_nickname, user_password = user_info
-        # print(user_info)
-        # raise ValueError('test')
         # TODO: здесь проверяем и записываем юзеров.
         # if user_nickname in self.registered_users:
         #     user_password: str = (await reader.readline()).decode().strip()
@@ -78,6 +65,7 @@ class Server:
         #     writer.write('NewUser!')
         #     new_password: str = (await reader.readline()).decode().strip()
         #     self.registered_users[user_nickname] = new_password
+
         self.connected_clients[user_nickname] = {
             'writer': writer,
             'private_messages': [],
