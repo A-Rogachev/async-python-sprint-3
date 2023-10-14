@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import json
 import logging
+from collections import namedtuple
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -9,10 +10,15 @@ logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
 
 
-def load_user_database(filename):
-        with open(filename, 'r') as file:
-            data = json.load(file)
-        return data
+Message = namedtuple('Message', ['date', 'index', 'text'])
+
+def load_user_database(filename: str) -> list[dict[str, Any]]:
+    """
+    Возвращает данные из БД пользователей.
+    """
+    with open(filename, 'r') as file:
+        data = json.load(file)
+    return data
 
 
 class Server:
@@ -38,9 +44,9 @@ class Server:
         self.claims: dict[str, int] = {}
         self.time_of_ban: int = time_of_ban
         self.private_messages: dict[str, Any] = {}
-        self.chat_messages = []
+        self.chat_messages: list[Message | None] = []
         self.connected_clients: dict[str, Any] = {}
-        self.claimed_users: dict[str, Any] = {}
+        self.claimed_users: dict[str, int] = {}
         self.help_message = (
             'help!@<username> <message> -> send private message to user\n'
             'help!@help -> show this message\n'
@@ -71,7 +77,7 @@ class Server:
 
             if self.chat_messages:
                 for message in self.chat_messages[-self.max_chat_messages:]:
-                    writer.write(f'History!{message[1]}\n'.encode())
+                    writer.write(f'History!{message.text}\n'.encode())
                     await writer.drain()
             if self.private_messages.get(user_nickname):
                 for message in self.private_messages[user_nickname]:
@@ -102,16 +108,18 @@ class Server:
                     await self.handle_command(message, user_nickname, writer)
                 else:
                     self.chat_messages.append(
-                        (
+                        Message(
                             message_date := datetime.datetime.now(),
-                            message_text := (
-                                f'({message_date.strftime("%d.%m.%y %H:%M:%S")}) '
+                            index := self.message_current_index,
+                            text := (
+                                f'[{index}] ({message_date.strftime("%d.%m.%y %H:%M:%S")}) '
                                 f'{user_nickname}: {message}'
                             )
                         )
                     )
-                    logger.info(f'new message: {message_text}')
-                    await self.broadcast_message(message_text)
+                    self.message_current_index += 1
+                    logger.info(f'new message: {text}')
+                    await self.broadcast_message(text)
                 await writer.drain()
 
             logger.info(f'---User {user_nickname} disconnected---')
