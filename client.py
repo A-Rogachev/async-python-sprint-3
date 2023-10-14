@@ -118,8 +118,17 @@ class Client:
         writer.write(nickname.encode() + b'\n')
         await writer.drain()
 
-        clear_console()
+        
+        answer = await reader.readline()
+        message = answer.decode().strip()
 
+        if message.startswith('AuthError!'):
+            if message.removeprefix("AuthError!").strip() != "":
+                sys.stdout.write(message.removeprefix('AuthError!') + '\n')
+                writer.close()
+                sys.exit(0)
+
+        clear_console()
         send_task = asyncio.create_task(self.send_message(writer))
         receive_task = asyncio.create_task(self.handle_message(reader))
         await asyncio.gather(send_task, receive_task)
