@@ -5,7 +5,6 @@ import logging
 from collections import namedtuple
 from typing import Any
 
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
@@ -19,7 +18,7 @@ def load_user_database(filename: str) -> list[dict[str, Any]]:
     Возвращает данные из БД пользователей.
     """
     with open(filename, 'r') as file:
-        data = json.load(file)
+        data: list[dict[str, Any]] = json.load(file)
     return data
 
 
@@ -292,7 +291,7 @@ class Server:
         while True:
             await asyncio.sleep(30)
             if self.claimed_users:
-                revealed = []
+                revealed: list[str | None] = []
                 for user in self.claimed_users:
                     if (datetime.datetime.now().timestamp() > self.claimed_users[user]):
                         self.claimed_users[user] = None
@@ -301,6 +300,7 @@ class Server:
                 logger.info(revealed)
                 for revealed_user in revealed:
                     del self.claimed_users[revealed_user]
+                del revealed
 
     async def listen(self) -> None:
         """

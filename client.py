@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass
+from typing import Any
 
 from server import load_user_database
 
@@ -17,7 +18,7 @@ class TerminalColors:
     RESET: str = '\033[0m'
 
 
-def clear_console():
+def clear_console() -> None:
     """
     Очистка окна терминала клиента после введения логина.
     """
@@ -25,24 +26,21 @@ def clear_console():
 
 
 class Client:
-    def __init__(self, server_host, server_port):
+    def __init__(self, server_host: str, server_port: int):
         """
         Инициализация объекта класса Клиент.
         """
         self.server_host: str = server_host
         self.server_port: int = server_port
-        self.client_id: int = 0
-        self.chat_messages: list = []
-        self.messages_received: list = []
-        self.colors = TerminalColors()
+        self.colors: TerminalColors = TerminalColors()
         self.COMMAND_PROMPT: str = self.colors.YELLOW + '>>> ' + self.colors.RESET
 
-    async def send_message(self, writer):
+    async def send_message(self, writer: asyncio.StreamWriter) -> None:
         """
         Отправка сообщения.
         """
         while True:
-            message = await self.get_user_input(self.COMMAND_PROMPT)
+            message: str = await self.get_user_input(self.COMMAND_PROMPT)
             writer.write((message).encode())
             await writer.drain()
 
@@ -51,7 +49,7 @@ class Client:
                 break
         writer.close()
 
-    async def handle_message(self, reader):
+    async def handle_message(self, reader: asyncio.StreamReader) -> None:
         """
         Обработка входящих сообщений.
         """
@@ -62,11 +60,10 @@ class Client:
         )
         sys.stdout.flush()
         while True:
-            data = await reader.readline()
+            data: bytes = await reader.readline()
             if not data:
                 break
-            message = data.decode().strip()
-
+            message: str = data.decode().strip()
             if message.startswith('Private!'):
                 if message.removeprefix("Private!").strip() != "":
                     sys.stdout.write(
@@ -102,18 +99,17 @@ class Client:
                         + f'\r{message.removeprefix("Chat!")}\n'
                         + self.COMMAND_PROMPT
                     )
-            self.messages_received.append(message)
             if message == 'exit':
                 break
 
-    async def get_user_input(self, prompt):
+    async def get_user_input(self, prompt: str) -> str:
         """
         Получение ввода пользователя.
         """
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, input, prompt)
 
-    async def start(self):
+    async def start(self) -> None:
         """
         Запуск клиента, установка связи с сервером.
         """
@@ -125,7 +121,7 @@ class Client:
             "If you want to register, enter 'new <nickname> <password>'.\n"
         )
 
-        user_info = nickname.split()
+        user_info: list[str] = nickname.split()
         if len(user_info) not in (2, 3) or len(user_info) == 3 and user_info[0] != 'new':
             sys.stdout.write(
                 self.colors.RED
@@ -135,8 +131,8 @@ class Client:
             writer.close()
             sys.exit(0)
 
-        user_database = load_user_database('users_database.json')
-        authenticated = False
+        user_database: list[dict[str, Any]] = load_user_database('users_database.json')
+        authenticated: bool = False
 
         if len(user_info) == 2:
             username, password = user_info
@@ -156,9 +152,12 @@ class Client:
                 with open('users_database.json', 'w') as file:
                     json.dump(user_database, file)
                 authenticated = True
-
         if not authenticated:
-            sys.stdout.write(self.colors.RED + 'Invalid username or password!\n' + self.colors.RESET)
+            sys.stdout.write(
+                self.colors.RED
+                + 'Invalid username or password!\n'
+                + self.colors.RESET
+            )
             writer.close()
             sys.exit(0)
 
@@ -169,10 +168,9 @@ class Client:
         send_task = asyncio.create_task(self.send_message(writer))
         receive_task = asyncio.create_task(self.handle_message(reader))
         await asyncio.gather(send_task, receive_task)
-
         writer.close()
 
 
 if __name__ == '__main__':
-    client = Client(server_host='127.0.0.1', server_port=8000)
+    client: Client = Client(server_host='127.0.0.1', server_port=8000)
     asyncio.run(client.start())
