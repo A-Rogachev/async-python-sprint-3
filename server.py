@@ -2,15 +2,13 @@ import asyncio
 import datetime
 import json
 import logging
-from collections import namedtuple
 from typing import Any
+
+from server_settings import AppSettings, Message
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
-
-
-Message = namedtuple('Message', ['date', 'index', 'text'])
 
 
 def load_user_database(filename: str) -> list[dict[str, Any]]:
@@ -26,36 +24,24 @@ class Server:
     """
     Асинхронный мессенджер (сервер).
     """
-    def __init__(
-        self,
-        host="127.0.0.1",
-        port: int = 8000,
-        max_chat_messages: int = 10,
-        message_ttl: int = 10,
-        time_of_ban: int = 3600,
-    ):
+    def __init__(self) -> None:
         """
         Инициализация экземпляра класса Сервер.
         """
-        self.message_current_index = 0
-        self.host: str = host
-        self.port: int = port
-        self.max_chat_messages: int = max_chat_messages
-        self.message_ttl: int = message_ttl
-        self.claims: dict[str, int] = {}
-        self.time_of_ban: int = time_of_ban
-        self.private_messages: dict[str, Any] = {}
-        self.chat_messages: list[Message | None] = []
-        self.connected_clients: dict[str, Any] = {}
-        self.claimed_users: dict[str, int] = {}
-        self.help_message = (
-            'help!@<username> <message> -> send private message to user\n'
-            'help!@help -> show this message\n'
-            'help!@claim<username> -> claim a user\n'
-            'help!@comment<message id> <new message> -> comment a message\n'
-            'help!@exit -> exit from the messenger\n'
-        )
-        self.user_database_filename: str = 'users_database.json'
+        app_settings = AppSettings()
+        self.message_current_index = app_settings.message_current_index
+        self.host = app_settings.host
+        self.port = app_settings.port
+        self.max_chat_messages = app_settings.max_chat_messages
+        self.message_ttl = app_settings.message_ttl
+        self.claims = app_settings.claims
+        self.time_of_ban = app_settings.time_of_ban
+        self.private_messages = app_settings.private_messages
+        self.chat_messages = app_settings.chat_messages
+        self.connected_clients = app_settings.connected_clients
+        self.claimed_users = app_settings.claimed_users
+        self.help_message = app_settings.help_message
+        self.user_database_filename = app_settings.user_database_filename
 
     async def client_connected(
         self,
@@ -318,5 +304,5 @@ class Server:
 
 
 if __name__ == '__main__':
-    server = Server(host='127.0.0.1', port=8000, max_chat_messages=10, time_of_ban=120)
+    server = Server()
     asyncio.run(server.listen())

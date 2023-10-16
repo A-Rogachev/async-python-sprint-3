@@ -152,7 +152,7 @@ class Client:
                 with open('users_database.json', 'w') as file:
                     json.dump(user_database, file)
                 authenticated = True
-            else:            
+            else:
                 sys.stdout.write(
                     self.colors.RED
                     + 'This name already occupied!\n'
